@@ -2,7 +2,7 @@
 name: FEATURE
 about: Feature 작업 사항을 입력해주세요.
 title: "[Feature] 사용자 프로필 기능 구현"
-labels: ''
+labels: backend, feature
 assignees: ''
 
 ---
