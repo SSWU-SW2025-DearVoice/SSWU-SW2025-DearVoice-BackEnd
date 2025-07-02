@@ -1,3 +1,21 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser
 
-# Register your models here.
+@admin.register(CustomUser)
+class CustomUserAdmin(UserAdmin):
+    model = CustomUser
+    list_display = ('user_id', 'email', 'nickname', 'is_staff')
+    ordering = ('user_id',)
+    search_fields = ('user_id', 'email', 'nickname')
+    fieldsets = (
+        (None, {'fields': ('user_id', 'email', 'password', 'nickname')}),
+        ('Permissions', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('user_id', 'email', 'nickname', 'password1', 'password2', 'is_staff', 'is_active')}
+        ),
+    )
