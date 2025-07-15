@@ -12,9 +12,9 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('user_id', 'email', 'nickname')
 
     fieldsets = (
-        (None, {'fields': ('user_id', 'email', 'password')}),
-        ('개인정보', {'fields': ('nickname',)}),
-        ('권한', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
+        (None, {'fields': ('user_id', 'email', 'password', 'nickname')}),
+        ('Permissions', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login', 'created_at')}),
     )
 
     add_fieldsets = (
