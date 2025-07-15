@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import SkyVoiceLetter
 from .serializers import SkyVoiceLetterSerializer
-import requests
+from .services import make_ai_reply
 
 class SkyVoiceLetterCreateView(generics.CreateAPIView):
     serializer_class = SkyVoiceLetterSerializer
@@ -25,28 +25,9 @@ class SkyVoiceLetterAIReplyView(APIView):
         
         if letter.reply_text or letter.reply_voice_file:
             return Response({'detail': '이미 답신이 등록된 편지입니다.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        ai_server_url = "http://AI서버주소/ai-reply/" 
-        ai_payload = {
-            "content_text": letter.content_text,
-            "receiver_info": {
-                "name": letter.receiver_name,
-                "gender": letter.receiver_gender,
-                "age": letter.receiver_age,
-                "type": letter.receiver_type,
-                "special_note": letter.receiver_special_note,
-            },
-        }
         try:
-            ai_response = requests.post(ai_server_url, json=ai_payload, timeout=10)
-            ai_response.raise_for_status()
-        except requests.RequestException:
-            return Response({'detail': 'AI 서버 오류'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        ai_data = ai_response.json()
-        letter.reply_text = ai_data.get("reply_text", "")
-        letter.reply_voice_file = ai_data.get("reply_voice_url", "")
-        letter.replied_at = timezone.now()
-        letter.save()
+            make_ai_reply(letter)
+        except Exception as e:
+            return Response({'detail': f'AI 답신 생성 오류: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(SkyVoiceLetterSerializer(letter).data, status=status.HTTP_200_OK)
