@@ -42,7 +42,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -90,7 +90,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_ROOT = ""
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -111,11 +111,19 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
 
-AWS_S3_ADDRESSING_STYLE = "path"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
+STATIC_URL = "https://%s/static/" % AWS_S3_CUSTOM_DOMAIN
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = "https://%s/media/" % AWS_S3_CUSTOM_DOMAIN
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AWS_DEFAULT_ACL = 'public-read'
 AWS_DEFAULT_ACL = None
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_FILE_OVERWRITE = False
 AWS_QUERYSTRING_AUTH = False
+
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
