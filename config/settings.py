@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'skyvoice',
     'storages',
+    'letters',
 ]
 
 MIDDLEWARE = [
@@ -127,3 +128,13 @@ AWS_QUERYSTRING_AUTH = False
 
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+AUTH_USER_MODEL = 'users.CustomUser'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
