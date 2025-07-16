@@ -26,3 +26,6 @@ migrations/
 .env
 *.env
 .env.*
+
+venv/
+Lib/
