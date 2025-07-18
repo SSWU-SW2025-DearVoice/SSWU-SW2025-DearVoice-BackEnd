@@ -3,11 +3,18 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+# ✅ BASE_DIR 기준으로 .env 위치 지정해서 load
+load_dotenv(dotenv_path=BASE_DIR / '.env')
+
+CLOVA_CLIENT_ID = os.getenv("CLOVA_CLIENT_ID")
+CLOVA_CLIENT_SECRET = os.getenv("CLOVA_CLIENT_SECRET")
+
+SECRET_KEY = 'django-insecure-scr!l#t!oc(2ker@!2782a3(%gxd&i^wy1ws$7qb=r2b5x3m9m'
+
 
 DEBUG = True
 
@@ -138,3 +145,6 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
+
+NCP_CLIENT_ID = os.getenv("NCP_CLIENT_ID")
+NCP_CLIENT_SECRET = os.getenv("NCP_CLIENT_SECRET")
