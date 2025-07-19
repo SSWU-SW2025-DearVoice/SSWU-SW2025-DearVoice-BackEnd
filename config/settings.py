@@ -3,11 +3,15 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+# ✅ BASE_DIR 기준으로 .env 위치 지정해서 load
+load_dotenv(dotenv_path=BASE_DIR / '.env')
+
+CLOVA_CLIENT_ID = os.getenv("CLOVA_CLIENT_ID")
+CLOVA_CLIENT_SECRET = os.getenv("CLOVA_CLIENT_SECRET")
+
+SECRET_KEY = 'django-insecure-scr!l#t!oc(2ker@!2782a3(%gxd&i^wy1ws$7qb=r2b5x3m9m'
 
 DEBUG = True
 
@@ -93,16 +97,6 @@ USE_TZ = True
 
 STATIC_ROOT = ""
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-AUTH_USER_MODEL = 'users.CustomUser'
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-}
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -122,7 +116,6 @@ MEDIA_URL = "https://%s/media/" % AWS_S3_CUSTOM_DOMAIN
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AWS_DEFAULT_ACL = 'public-read'
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False
 
@@ -138,3 +131,6 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
+
+NCP_CLIENT_ID = os.getenv("NCP_CLIENT_ID")
+NCP_CLIENT_SECRET = os.getenv("NCP_CLIENT_SECRET")
