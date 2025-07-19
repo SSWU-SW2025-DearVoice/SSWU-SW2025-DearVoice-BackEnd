@@ -6,13 +6,21 @@ from django.utils import timezone
 from .models import SkyVoiceLetter
 from .serializers import SkyVoiceLetterSerializer
 from .services import make_ai_reply
+from letters.views import clova_speech_to_text
+from .utils import generate_presigned_url
 
 class SkyVoiceLetterCreateView(generics.CreateAPIView):
     serializer_class = SkyVoiceLetterSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        letter = serializer.save(user=self.request.user)
+
+        if letter.voice_file:
+            audio_file_url = generate_presigned_url(letter.voice_file)
+            content_text = clova_speech_to_text(audio_file_url)
+            letter.content_text = content_text
+            letter.save()
 
 class SkyVoiceLetterAIReplyView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
