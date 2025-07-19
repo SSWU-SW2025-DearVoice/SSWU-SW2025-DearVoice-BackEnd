@@ -13,25 +13,30 @@ import requests
 from django.conf import settings
 
 def clova_speech_to_text(file_url):
-    url = "https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor"
+    print("==> S3 presigned URL:", file_url)
+    response_file = requests.get(file_url)
+    print("==> S3 다운로드 status_code:", response_file.status_code)
+    if response_file.status_code != 200:
+        print("S3 다운로드 실패!")
+        return ""
+
+    audio_data = response_file.content
+    print("==> 다운로드한 데이터 길이:", len(audio_data))
+
+    api_url = "https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor"
     headers = {
         "X-NCP-APIGW-API-KEY-ID": settings.NCP_CLIENT_ID,
         "X-NCP-APIGW-API-KEY": settings.NCP_CLIENT_SECRET,
         "Content-Type": "application/octet-stream",
     }
 
-    # S3에 업로드된 audio_file을 URL로 다운로드
-    response_file = requests.get(file_url)
-    if response_file.status_code != 200:
-        return ""
-
-    audio_data = response_file.content
-
-    response = requests.post(url, headers=headers, data=audio_data)
+    response = requests.post(api_url, headers=headers, data=audio_data)
+    print("==> 네이버 응답 status_code:", response.status_code)
+    print("==> 네이버 응답 text:", response.text)
     if response.status_code == 200:
-        result = response.json()
-        return result.get("text", "")
+        return response.json().get("text", "")
     else:
+        print("STT 실패!")
         return ""
 
 class LetterCreateView(APIView):
