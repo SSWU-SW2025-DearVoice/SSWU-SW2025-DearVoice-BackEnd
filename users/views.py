@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer
 from django.conf import settings
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from dj_rest_auth.registration.views import SocialLoginView
 
 User = get_user_model()
 
@@ -61,3 +63,6 @@ class GoogleLoginAPIView(APIView):
                 'nickname': user.nickname,
             }
         }, status=status.HTTP_200_OK)
+    
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
