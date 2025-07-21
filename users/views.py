@@ -11,6 +11,9 @@ from django.http import JsonResponse
 from django.views import View
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
+# 프론트 추가
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
 
 
 
@@ -89,3 +92,14 @@ class GoogleLoginAPIView(APIView):
     
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
+
+# 프론트 추가
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    user = request.user
+    return Response({
+        'user_id': user.user_id,
+        'email': user.email,
+        'nickname': user.nickname,
+    })
