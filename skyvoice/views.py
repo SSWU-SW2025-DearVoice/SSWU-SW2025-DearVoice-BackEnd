@@ -8,6 +8,7 @@ from .serializers import SkyVoiceLetterSerializer
 from .services import make_ai_reply
 from letters.views import clova_speech_to_text
 from .utils import generate_presigned_url
+from .services import make_ai_reply
 
 class SkyVoiceLetterCreateView(generics.CreateAPIView):
     serializer_class = SkyVoiceLetterSerializer
@@ -21,6 +22,10 @@ class SkyVoiceLetterCreateView(generics.CreateAPIView):
             content_text = clova_speech_to_text(audio_file_url)
             letter.content_text = content_text
             letter.save()
+        try:
+            make_ai_reply(letter)
+        except Exception as e:
+            print(f"[SkyVoice] AI 답변 생성 실패: {e}")
 
 class SkyVoiceLetterAIReplyView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
