@@ -29,3 +29,8 @@ migrations/
 
 venv/
 Lib/
+.bak
+.dat
+
+*.mp3
+letters/audio/
