@@ -7,8 +7,9 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer
 from django.conf import settings
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from dj_rest_auth.registration.views import SocialLoginView
+from django.http import JsonResponse
+from django.views import View
+
 
 User = get_user_model()
 
@@ -23,6 +24,23 @@ class SignupView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class CheckUsernameView(View):
+    def get(self, request):
+        username = request.GET.get('username')
+        if not username:
+            return JsonResponse({'available': False, 'error': 'Username not provided'}, status=400)
+        exists = User.objects.filter(username=username).exists()
+        return JsonResponse({'available': not exists})
+
+class CheckEmailView(View):
+    def get(self, request):
+        email = request.GET.get('email')
+        if not email:
+            return JsonResponse({'available': False, 'error': 'Email not provided'}, status=400)
+        exists = User.objects.filter(email=email).exists()
+        return JsonResponse({'available': not exists})
+
+        
 class GoogleLoginAPIView(APIView):
     def post(self, request):
         id_token = request.data.get('id_token')
@@ -63,6 +81,8 @@ class GoogleLoginAPIView(APIView):
                 'nickname': user.nickname,
             }
         }, status=status.HTTP_200_OK)
+
+
     
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
