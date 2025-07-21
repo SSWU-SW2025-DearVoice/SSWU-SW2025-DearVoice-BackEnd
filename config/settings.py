@@ -1,15 +1,17 @@
 from pathlib import Path
 from datetime import timedelta
 import os
-from dotenv import load_dotenv
 from celery.schedules import crontab
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ✅ BASE_DIR 기준으로 .env 위치 지정해서 load
 load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 CLOVA_CLIENT_ID = os.getenv("CLOVA_CLIENT_ID")
 CLOVA_CLIENT_SECRET = os.getenv("CLOVA_CLIENT_SECRET")
+
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
@@ -18,7 +20,9 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 SECRET_KEY = 'django-insecure-scr!l#t!oc(2ker@!2782a3(%gxd&i^wy1ws$7qb=r2b5x3m9m'
+
 DEBUG = True
+
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -30,33 +34,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users',
     'rest_framework',
-    'rest_framework.authtoken',
     'drf_yasg',
     'skyvoice',
     'storages',
     'letters',
-    'django.contrib.sites',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-    'dj_rest_auth',
-    'dj_rest_auth.registration',
+    'mypage',
 ]
-
-SITE_ID = 1
-
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
-        'APP': {
-            'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
-            'secret': os.environ.get('GOOGLE_CLIENT_SECRET'),
-            'key': ''
-        }
-    }
-}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -66,7 +49,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -115,9 +97,13 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
+
 TIME_ZONE = 'Asia/Seoul'
+
 USE_I18N = True
+
 USE_TZ = True
+
 STATIC_ROOT = ""
 
 SIMPLE_JWT = {
@@ -139,6 +125,7 @@ AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
 STATIC_URL = "https://%s/static/" % AWS_S3_CUSTOM_DOMAIN
 STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 MEDIA_URL = "https://%s/media/" % AWS_S3_CUSTOM_DOMAIN
@@ -165,6 +152,8 @@ REST_FRAMEWORK = {
 NCP_CLIENT_ID = os.getenv("NCP_CLIENT_ID")
 NCP_CLIENT_SECRET = os.getenv("NCP_CLIENT_SECRET")
 
+NCP_CLIENT_SECRET = os.getenv("NCP_CLIENT_SECRET")
+
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -181,7 +170,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*'),
     },
 }
-
 ACCOUNT_LOGIN_METHOD = "email"
 ACCOUNT_SIGNUP_FIELDS = ["email", "nickname", "password1*", "password2*"]
 
