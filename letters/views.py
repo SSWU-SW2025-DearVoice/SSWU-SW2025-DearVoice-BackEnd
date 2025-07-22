@@ -2,8 +2,8 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import Letter
-from .serializers import LetterSerializer
+from .models import Letter, LetterRecipient
+from .serializers import LetterSerializer, LetterCreateSerializer
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
@@ -79,42 +79,39 @@ class LetterCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        serializer = LetterSerializer(data=request.data)
+        serializer = LetterCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            letter = serializer.save(sender=request.user)
-
+            letter = serializer.save()
             # 음성 파일을 텍스트로 변환
             try:
                 stt_result = clova_speech_to_text(letter.audio_file)
                 if stt_result:
                     letter.transcript = stt_result
                     letter.save()
-                    print(f"==> STT 성공: {stt_result}")
-                else:
-                    print("==> STT 실패: 빈 결과")
             except Exception as e:
                 print(f"==> STT 오류: {e}")
-                # STT 실패해도 편지 생성은 계속 진행
 
-            # 이메일 전송
-            receiver_email = letter.receiver_email
-            if receiver_email:
-                try:
-                    letter_url = f"https://your-frontend-url.com/letters/{letter.id}"
-                    send_mail(
-                        subject="DearVoice에서 새로운 음성 편지가 도착했습니다",
-                        message=f"DearVoice에서 새로운 음성 편지를 받았습니다.\n아래 링크를 클릭하여 편지를 확인하세요:\n{letter_url}",
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[receiver_email],
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    print(f"이메일 전송 실패: {e}")
+            # 다중 수신자: LetterRecipient별로 메일 발송
+            for recipient in letter.recipients.all():
+                target_email = recipient.email
+                if recipient.user and recipient.user.email:
+                    target_email = recipient.user.email
+                if target_email:
+                    try:
+                        letter_url = f"https://your-frontend-url.com/letters/{letter.id}"
+                        send_mail(
+                            subject="DearVoice에서 새로운 음성 편지가 도착했습니다",
+                            message=f"DearVoice에서 새로운 음성 편지를 받았습니다.\n아래 링크를 클릭하여 편지를 확인하세요:\n{letter_url}",
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[target_email],
+                            fail_silently=False,
+                        )
+                    except Exception as e:
+                        print(f"이메일 전송 실패: {e}")
 
-            # 응답에 변환된 텍스트 포함
-            response_data = LetterSerializer(letter).data
-            return Response(response_data, status=status.HTTP_201_CREATED)
-            
+            # 응답
+            return Response({"letter_id": letter.id}, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LetterListView(ListAPIView):
@@ -123,7 +120,12 @@ class LetterListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return Letter.objects.filter(Q(sender=user) | Q(receiver_email=user.email))
+        sent_qs = Letter.objects.filter(sender=user)
+        received_letter_ids = LetterRecipient.objects.filter(
+            Q(user=user) | Q(email=user.email)
+        ).values_list('letter_id', flat=True)
+        received_qs = Letter.objects.filter(id__in=received_letter_ids)
+        return sent_qs.union(received_qs)
 
 class LetterDetailView(RetrieveAPIView):
     queryset = Letter.objects.all()
