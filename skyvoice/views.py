@@ -68,3 +68,8 @@ class SkyVoiceTranscribeView(APIView):
             return Response({
                 "error": f"텍스트 변환 실패: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SkyVoiceLetterDetailView(generics.RetrieveAPIView):
+    queryset = SkyVoiceLetter.objects.all()
+    serializer_class = SkyVoiceLetterSerializer
+    permission_classes = [permissions.IsAuthenticated]
