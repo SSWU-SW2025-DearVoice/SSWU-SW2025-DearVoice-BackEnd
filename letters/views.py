@@ -38,18 +38,30 @@ class TranscribeAudioView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        audio_file = request.FILES.get('audio_file')
-        if not audio_file:
+        audio_url = request.data.get('audio_url')
+        if not audio_url:
             return Response(
-                {"error": "audio_file이 필요합니다."}, 
+                {"error": "audio_url이 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            # 음성을 텍스트로 변환
-            transcript = clova_speech_to_text(audio_file)
-            
-            if transcript:
+            # S3에서 음성파일을 다운로드
+            response_file = requests.get(audio_url)
+            response_file.raise_for_status()
+            audio_data = response_file.content
+
+            # STT API 호출
+            api_url = "https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor"
+            headers = {
+                "X-NCP-APIGW-API-KEY-ID": settings.NCP_CLIENT_ID,
+                "X-NCP-APIGW-API-KEY": settings.NCP_CLIENT_SECRET,
+                "Content-Type": "application/octet-stream",
+            }
+            response = requests.post(api_url, headers=headers, data=audio_data)
+            if response.status_code == 200:
+                result = response.json()
+                transcript = result.get("text", "")
                 return Response({
                     "transcript": transcript,
                     "success": True,
@@ -61,7 +73,6 @@ class TranscribeAudioView(APIView):
                     "success": False,
                     "message": "음성을 텍스트로 변환할 수 없습니다."
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
         except Exception as e:
             print(f"텍스트 변환 오류: {e}")
             return Response({
