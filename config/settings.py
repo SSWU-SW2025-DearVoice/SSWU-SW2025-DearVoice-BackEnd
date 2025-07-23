@@ -186,3 +186,12 @@ ACCOUNT_SIGNUP_FIELDS = ["email", "nickname", "password1*", "password2*"]
 REST_AUTH_REGISTER_SERIALIZERS = {
     'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
 }
+
+# .env에서 가져온 상대경로
+google_credential_rel_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+# 절대경로로 변환
+google_credential_abs_path = BASE_DIR / google_credential_rel_path
+
+# 환경변수로 재설정 (Google Cloud 라이브러리가 여기서 읽음)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(google_credential_abs_path)
