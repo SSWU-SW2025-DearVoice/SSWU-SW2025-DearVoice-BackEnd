@@ -14,12 +14,9 @@ from django.conf import settings
 from django.core.mail import send_mail
 import boto3
 
-def clova_speech_to_text(file_obj):
-    """음성 파일을 텍스트로 변환하는 공통 함수"""
-    file_obj.seek(0)
-    audio_data = file_obj.read()
-    print("==> 데이터 길이:", len(audio_data))
-
+def clova_speech_to_text(file_url):
+    response_file = requests.get(file_url)
+    audio_data = response_file.content
     api_url = "https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor"
     headers = {
         "X-NCP-APIGW-API-KEY-ID": settings.NCP_CLIENT_ID,
@@ -28,9 +25,7 @@ def clova_speech_to_text(file_obj):
     }
 
     response = requests.post(api_url, headers=headers, data=audio_data)
-    print("==> 네이버 응답 status_code:", response.status_code)
-    print("==> 네이버 응답 text:", response.text)
-    
+
     if response.status_code == 200:
         result = response.json()
         return result.get("text", "")
