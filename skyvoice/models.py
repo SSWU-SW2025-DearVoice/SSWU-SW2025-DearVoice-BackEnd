@@ -4,6 +4,9 @@ from django.conf import settings
 class SkyVoiceLetter(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='skyvoice_letters')
     
+    title = models.CharField(max_length=100, blank=True)
+    color = models.CharField(max_length=20, blank=True, default="white")
+
     receiver_name = models.CharField(max_length=30)
     receiver_gender = models.CharField(max_length=10)
     receiver_age = models.PositiveIntegerField()
