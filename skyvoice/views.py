@@ -53,12 +53,22 @@ class SkyVoiceTranscribeView(APIView):
 
     def post(self, request):
         audio_file = request.FILES.get('audio_file')
-        if not audio_file:
-            return Response({"error": "audio_file이 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        audio_url = request.data.get('audio_url')
+
+        if not audio_file and not audio_url:
+            return Response({"error": "audio_file 또는 audio_url이 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            audio_file.seek(0)
-            transcript = clova_speech_to_text(audio_file)
+            if audio_file:
+                audio_file.seek(0)
+                transcript = clova_speech_to_text(audio_file)
+            else:
+                # S3에서 파일을 다운로드해서 처리
+                import requests
+                response = requests.get(audio_url)
+                response.raise_for_status()
+                transcript = clova_speech_to_text(response.content)
+
             return Response({
                 "transcript": transcript,
                 "success": True
