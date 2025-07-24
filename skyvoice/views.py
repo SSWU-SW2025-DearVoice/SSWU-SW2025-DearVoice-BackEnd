@@ -10,6 +10,8 @@ from letters.views import clova_speech_to_text
 from .utils import generate_presigned_url
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+#프론트 추가
+from rest_framework.permissions import IsAuthenticated
 
 class SkyVoiceLetterCreateView(generics.CreateAPIView):
     serializer_class = SkyVoiceLetterSerializer
@@ -83,3 +85,11 @@ class SkyVoiceLetterDetailView(generics.RetrieveAPIView):
     queryset = SkyVoiceLetter.objects.all()
     serializer_class = SkyVoiceLetterSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+#프론트 추가
+class SkyVoiceLetterListView(generics.ListAPIView):
+    serializer_class = SkyVoiceLetterSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SkyVoiceLetter.objects.filter(user=self.request.user).order_by('-created_at')
