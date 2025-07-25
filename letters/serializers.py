@@ -32,7 +32,7 @@ class LetterCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Letter
-        fields = ['audio_file', 'paper_color', 'scheduled_at', 'transcript', 'recipients']
+        fields = ['audio_file', 'paper_color', 'scheduled_at', 'transcript', 'recipients', 'audio_url']
 
     def validate_recipients(self, value):
         try:

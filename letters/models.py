@@ -13,6 +13,8 @@ class Letter(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     is_sent = models.BooleanField(default=False)
+    audio_url = models.URLField(blank=True, null=True)
+
 
     def __str__(self):
         return f"Letter from {self.sender} to {self.receiver_email or 'anonymous'}"
