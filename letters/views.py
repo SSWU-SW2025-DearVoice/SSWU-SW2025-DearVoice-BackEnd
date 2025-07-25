@@ -90,40 +90,53 @@ class LetterCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        serializer = LetterCreateSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            letter = serializer.save()
-            # 음성 파일을 텍스트로 변환
-            try:
-                stt_result = clova_speech_to_text(letter.audio_file)
-                if stt_result:
-                    letter.transcript = stt_result
-                    letter.save()
-            except Exception as e:
-                print(f"==> STT 오류: {e}")
+        data = request.data
+        user = request.user
 
-            # 다중 수신자: LetterRecipient별로 메일 발송
-            for recipient in letter.recipients.all():
-                target_email = recipient.email
-                if recipient.user and recipient.user.email:
-                    target_email = recipient.user.email
-                if target_email:
-                    try:
-                        letter_url = f"https://your-frontend-url.com/letters/{letter.id}"
-                        send_mail(
-                            subject="DearVoice에서 새로운 음성 편지가 도착했습니다",
-                            message=f"DearVoice에서 새로운 음성 편지를 받았습니다.\n아래 링크를 클릭하여 편지를 확인하세요:\n{letter_url}",
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            recipient_list=[target_email],
-                            fail_silently=False,
-                        )
-                    except Exception as e:
-                        print(f"이메일 전송 실패: {e}")
+        receiver_list = data.get("receiver_list", [])
+        audio_url = data.get("audio_url")
+        transcript = data.get("transcript", "")  # 프론트에서 받은 transcript 사용
 
-            # 응답
-            return Response({"letter_id": letter.id}, status=status.HTTP_201_CREATED)
+        if not receiver_list or not audio_url:
+            return Response({"error": "receiver_list와 audio_url은 필수입니다."}, status=400)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # 1. Letter 생성 (transcript는 프론트에서 받은 값 사용)
+            letter = Letter.objects.create(
+                sender=user,
+                paper_color=data.get("paper_color", "white"),
+                scheduled_at=data.get("scheduled_at"),
+                transcript=transcript,
+                audio_url=audio_url,
+            )
+
+            # 2. 각 수신자에 대해 LetterRecipient 생성
+            for receiver in receiver_list:
+                email = receiver.get("email")
+                if not email:
+                    continue
+
+                recipient = LetterRecipient.objects.create(
+                    letter=letter,
+                    email=email,
+                )
+
+                try:
+                    letter_url = f"https://your-frontend-url.com/letters/{letter.id}"
+                    send_mail(
+                        subject="DearVoice에서 새로운 음성 편지가 도착했습니다",
+                        message=f"DearVoice에서 새로운 음성 편지를 받았습니다.\n아래 링크를 클릭하여 편지를 확인하세요:\n{letter_url}",
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[email],
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    print(f"이메일 전송 실패: {e}")
+
+            return Response(LetterSerializer(letter).data, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
         # S3 업로드 API
 class S3UploadView(APIView):
