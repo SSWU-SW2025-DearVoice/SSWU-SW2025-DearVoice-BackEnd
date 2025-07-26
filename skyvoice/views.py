@@ -63,7 +63,7 @@ class SkyVoiceTranscribeView(APIView):
 
         try:
             if audio_file:
-                # 1. 임시 객체에 파일 저장 (필수 필드 기본값)
+                # 1. 임시 객체에 파일 저장 (필수 필드 기본값, 이 때 파일을 S3에 업로드하려면 모델 객체 파일을 저장해야 되기 때문)
                 temp_letter = SkyVoiceLetter.objects.create(
                     user=request.user,
                     voice_file=audio_file,
