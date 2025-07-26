@@ -22,6 +22,7 @@ class SkyVoiceLetterCreateView(generics.CreateAPIView):
 
         if letter.voice_file:
             audio_file_url = generate_presigned_url(letter.voice_file)
+            letter.voice_file_url = audio_file_url  # 발급 받은 presigned_url을 DB에 저장 (마이페이지에서 열어볼 수 있게, 근데 임시 접근이기 때문에 제한 시간 있음)
             content_text = clova_speech_to_text(audio_file_url)
             letter.content_text = content_text
             letter.save()
@@ -62,14 +63,27 @@ class SkyVoiceTranscribeView(APIView):
 
         try:
             if audio_file:
-                audio_file.seek(0)
-                transcript = clova_speech_to_text(audio_file)
+                # 1. 임시 객체에 파일 저장 (필수 필드 기본값)
+                temp_letter = SkyVoiceLetter.objects.create(
+                    user=request.user,
+                    voice_file=audio_file,
+                    receiver_name="temp",
+                    receiver_gender="unknown",
+                    receiver_age=0,
+                    receiver_type="temp",
+                    color="white",
+                    title="temp"
+                )
+                temp_letter.refresh_from_db()
+                # 2. presigned URL 발급
+                audio_file_url = generate_presigned_url(temp_letter.voice_file)
+                # 3. STT 변환
+                transcript = clova_speech_to_text(audio_file_url)
+                # 4. 임시 객체 삭제
+                temp_letter.delete()
             else:
                 # S3에서 파일을 다운로드해서 처리
-                import requests
-                response = requests.get(audio_url)
-                response.raise_for_status()
-                transcript = clova_speech_to_text(response.content)
+                transcript = clova_speech_to_text(audio_url)
 
             return Response({
                 "transcript": transcript,

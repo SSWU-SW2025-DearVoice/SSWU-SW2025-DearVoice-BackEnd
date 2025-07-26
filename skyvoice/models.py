@@ -15,6 +15,7 @@ class SkyVoiceLetter(models.Model):
 
     content_text = models.TextField(blank=True)
     voice_file = models.FileField(upload_to='skyvoice/', blank=True, null=True)
+    voice_file_url = models.URLField(blank=True, null=True)  # ✅ S3 URL 저장용 필드 추가
 
     reply_text = models.TextField(blank=True)
     reply_voice_file = models.FileField(upload_to='skyvoice/reply/', blank=True, null=True)
