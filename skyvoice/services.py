@@ -90,3 +90,30 @@ def make_ai_reply(letter):
     letter.replied_at = timezone.now()
     letter.save()
     return letter
+
+# 4. 파이프라인 전체
+def make_ai_reply(letter):
+    try:
+        # 1. GPT 답장 생성
+        reply_text = generate_gpt_reply(letter)
+        if not reply_text:
+            reply_text = "[AI 답장 생성 실패]"
+
+        # 2. Google TTS 변환
+        mp3_data = synthesize_speech(reply_text)
+        if not mp3_data:
+            raise ValueError("TTS 변환 실패")
+
+        # 3. FileField(S3)에 파일 저장 (filename 유니크 보장)
+        filename = f"skyvoice_reply_{uuid.uuid4().hex}.mp3"
+        letter.reply_text = reply_text
+        letter.reply_voice_file.save(filename, ContentFile(mp3_data), save=False)
+
+        # 4. 답신 시간 기록
+        letter.replied_at = timezone.now()
+        letter.save()
+
+        return letter
+    except Exception as e:
+        logger.error(f"[SkyVoice AI 오류] letter.id={letter.id}: {e}")
+        return None
