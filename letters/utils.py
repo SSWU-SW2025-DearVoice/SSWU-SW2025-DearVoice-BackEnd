@@ -4,40 +4,63 @@ import logging
 from dotenv import load_dotenv
 from django.core.mail import send_mail
 from django.conf import settings
+import ffmpeg
+import tempfile
+import requests
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-CLOVA_API_URL = "https://clovaspeech-gw.ncloud.com/recognizer/upload"
+def convert_webm_to_wav(file_url):
+    input_file = tempfile.NamedTemporaryFile(suffix=".webm", delete=False)
+    output_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+
+    print(f"[DEBUG] 입력 파일 경로: {input_file.name}")
+    print(f"[DEBUG] 출력 파일 경로: {output_file.name}")
+
+    # S3에서 webm 파일 다운로드
+    res = requests.get(file_url)
+    input_file.write(res.content)
+    input_file.close()
+
+    # ffmpeg로 변환 (덮어쓰기 허용)
+    try:
+        ffmpeg.input(input_file.name).output(output_file.name, ac=1, ar=16000).overwrite_output().run()
+    except Exception as e:
+        print(f"[FFMPEG ERROR]: {e}")
+        raise
+
+    return output_file.name
+
+CLOVA_API_URL = "https://clovaspeech-gw.ncloud.com/recognizer/upload?language=ko-KR"
 CLOVA_API_KEY = os.getenv("CLOVA_API_KEY", "")
 
 HEADERS = {
     "X-CLOVASPEECH-API-KEY": CLOVA_API_KEY
 }
 
-def clova_stt_from_file(file_url, filename="audio.webm", mime="audio/webm"):
+def clova_stt_from_file(file_url):
     try:
-        file_response = requests.get(file_url)
-        file_response.raise_for_status()
+        wav_path = convert_webm_to_wav(file_url)
+
+        print(f"[DEBUG] 변환된 wav 파일 경로: {wav_path}")
+        print(f"[DEBUG] 파일 크기: {os.path.getsize(wav_path)} bytes")
+
+        with open(wav_path, 'rb') as wav_file:
+            files = {
+                "media": ("recording.wav", wav_file, "audio/wav")
+            }
+            data = {
+                "language": "ko-KR"
+            }
+            response = requests.post(CLOVA_API_URL, headers=HEADERS, files=files)
+            print("[DEBUG] Clova 응답 상태코드:", response.status_code)
+            print("[DEBUG] Clova 응답 본문:", response.text)
+            response.raise_for_status()
+            return response.json().get("text")
+        
     except Exception as e:
-        logger.error(f"[STT] 파일 다운로드 실패: {e}")
-        return None
-
-    files = {
-        "media": (filename, file_response.content, mime)
-    }
-
-    data = {
-        "language": "ko-KR"
-    }
-
-    try:
-        response = requests.post(CLOVA_API_URL, headers=HEADERS, data=data, files=files)
-        response.raise_for_status()
-        return response.json().get("text")
-    except Exception as e:
-        logger.error(f"[STT] 클로바 요청 실패: {e}")
-        logger.error(f"[STT] 응답 내용: {getattr(response, 'text', '없음')}")
+        logger.error(f"[STT 변환 실패]: {e}")
         return None
 
 def send_letter_email(email, letter_id):

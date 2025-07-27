@@ -9,13 +9,8 @@ from .serializers import SignupSerializer
 from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from dj_rest_auth.registration.views import SocialLoginView
-# 프론트 추가
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
-
-
 
 User = get_user_model()
 
@@ -30,12 +25,12 @@ class SignupView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class CheckUsernameView(View):
+class CheckUserIdView(View):
     def get(self, request):
-        username = request.GET.get('username')
-        if not username:
-            return JsonResponse({'available': False, 'error': 'Username not provided'}, status=400)
-        exists = User.objects.filter(username=username).exists()
+        user_id = request.GET.get('user_id')
+        if not user_id:
+            return JsonResponse({'available': False, 'error': 'user_id not provided'}, status=400)
+        exists = User.objects.filter(user_id=user_id).exists()
         return JsonResponse({'available': not exists})
 
 class CheckEmailView(View):
@@ -45,13 +40,13 @@ class CheckEmailView(View):
             return JsonResponse({'available': False, 'error': 'Email not provided'}, status=400)
         exists = User.objects.filter(email=email).exists()
         return JsonResponse({'available': not exists})
-
-        
+      
 class GoogleLoginAPIView(APIView):
     def post(self, request):
         id_token = request.data.get('id_token')
         if not id_token:
             return Response({'detail': 'id_token이 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             idinfo = google_id_token.verify_oauth2_token(
                 id_token, requests.Request(),
@@ -67,31 +62,39 @@ class GoogleLoginAPIView(APIView):
             return Response({'detail': '구글 프로필 정보 부족'}, status=status.HTTP_400_BAD_REQUEST)
         if not nickname:
             nickname = email.split('@')[0]
-        
+
         user = User.objects.filter(email=email).first()
+        is_new_user = False
+
         if user is None:
             user_id = f'google_{google_uid}'
             user = User.objects.create_user(
                 user_id=user_id,
                 email=email,
-                nickname=nickname
+                nickname=nickname,
+                is_social_login=True,
+                is_new_user=True
             )
+            is_new_user = True
+        else:
+            # 기존 유저라면 is_new_user=False로 업데이트 (단 한 번만 True로 유지)
+            if user.is_new_user:
+                user.is_new_user = False
+                user.save()
 
         refresh = RefreshToken.for_user(user)
+
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'is_new_user': is_new_user,
             'user': {
                 'user_id': user.user_id,
                 'email': user.email,
                 'nickname': user.nickname,
+                'is_social_login': user.is_social_login,
             }
         }, status=status.HTTP_200_OK)
-
-
-    
-class GoogleLogin(SocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
 
 # 프론트 추가
 @api_view(['GET'])
@@ -102,4 +105,6 @@ def me_view(request):
         'user_id': user.user_id,
         'email': user.email,
         'nickname': user.nickname,
+        'is_social_login': user.is_social_login,
+        'is_new_user': user.is_new_user,
     })
