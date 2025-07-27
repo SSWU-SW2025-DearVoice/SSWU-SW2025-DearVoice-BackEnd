@@ -8,14 +8,17 @@ from django.conf import settings
 import boto3
 import uuid
 from .utils import send_letter_email
-
 from .models import Letter, LetterRecipient
-from .serializers import LetterSerializer, LetterCreateSerializer
-from .utils import clova_stt_from_file 
+from .serializers import (
+    LetterSerializer,
+    LetterCreateSerializer,
+)
+from .utils import clova_stt_from_file
+
 
 # STT 변환 API
 class ClovaSpeechToTextView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         audio_url = request.data.get('audio_url')
@@ -36,49 +39,29 @@ class ClovaSpeechToTextView(APIView):
                 "message": "음성을 텍스트로 변환할 수 없습니다."
             }, status=400)
 
+
 # 편지 생성 API
 class LetterCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        data = request.data
-        user = request.user
+        serializer = LetterCreateSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            letter = serializer.save()
 
-        receiver_list = data.get("receiver_list", [])
-        audio_url = data.get("audio_url")
-        transcript = data.get("transcript", "")
-
-        if not receiver_list or not audio_url:
-            return Response({"error": "receiver_list와 audio_url은 필수입니다."}, status=400)
-
-        try:
-            # Letter 생성
-            letter = Letter.objects.create(
-                sender=user,
-                paper_color=data.get("paper_color", "white"),
-                scheduled_at=data.get("scheduled_at"),
-                transcript=transcript,
-                audio_url=audio_url,
-            )
-
-            # 수신자 처리
-            for receiver in receiver_list:
-                email = receiver.get("email")
-                if not email:
-                    continue
-
-                recipient = LetterRecipient.objects.create(letter=letter, email=email)
-
-                # 이메일 발송
-                send_letter_email(email, letter.id)
+            # 이메일 발송
+            for r in letter.recipients.all():
+                send_letter_email(r.email, letter.id)
 
             return Response(LetterSerializer(letter).data, status=201)
+        else:
+            return Response(serializer.errors, status=400)
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
 
 # S3 업로드용 API
 class S3UploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -97,6 +80,7 @@ class S3UploadView(APIView):
         url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{filename}"
         return Response({"url": url})
 
+
 # 편지 목록 조회 API
 class LetterListView(ListAPIView):
     serializer_class = LetterSerializer
@@ -104,13 +88,10 @@ class LetterListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        sent = Letter.objects.filter(sender=user)
-        received_ids = LetterRecipient.objects.filter(
-            Q(user=user) | Q(email=user.email)
-        ).values_list('letter_id', flat=True)
-        received = Letter.objects.filter(id__in=received_ids)
-        
-        return sent.union(received).prefetch_related('recipients').order_by('-created_at')
+        return Letter.objects.filter(
+            Q(sender=user) | Q(recipients__user=user) | Q(recipients__email=user.email)
+        ).distinct().prefetch_related('recipients').order_by('-created_at')
+
 
 # 편지 상세 조회 API
 class LetterDetailView(RetrieveAPIView):

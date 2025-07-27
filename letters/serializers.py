@@ -7,13 +7,13 @@ from users.models import CustomUser
 
 class LetterSerializer(serializers.ModelSerializer):
     recipients = serializers.SerializerMethodField()
+    sender = serializers.SerializerMethodField()
 
     class Meta:
         model = Letter
         fields = [
             'id',
             'sender',
-            'audio_file',
             'audio_url',
             'transcript',
             'paper_color',
@@ -23,6 +23,15 @@ class LetterSerializer(serializers.ModelSerializer):
             'recipients',
         ]
         read_only_fields = ['sender']
+
+    def get_sender(self, obj):
+        user = obj.sender
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "nickname": user.nickname,
+            "display_id": user.user_id or user.email
+        }
 
     def get_recipients(self, obj):
         return [
@@ -48,16 +57,15 @@ class LetterSerializer(serializers.ModelSerializer):
 
 class LetterCreateSerializer(serializers.ModelSerializer):
     recipients = serializers.ListField(
-        child=serializers.DictField(
-            child=serializers.CharField()
-        ),
+        child=serializers.DictField(child=serializers.CharField()),
         write_only=True
     )
+    sender = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Letter
         fields = [
-            'audio_file',
+            'sender',
             'audio_url',
             'paper_color',
             'scheduled_at',
@@ -65,15 +73,32 @@ class LetterCreateSerializer(serializers.ModelSerializer):
             'recipients',
         ]
 
+    def validate(self, attrs):
+        # audio_url은 필수
+        if not attrs.get('audio_url'):
+            raise serializers.ValidationError("audio_url은 필수입니다.")
+        return attrs
+
+    def validate_scheduled_at(self, value):
+        if value:
+            if timezone.is_naive(value):
+                seoul = pytz.timezone('Asia/Seoul')
+                value = seoul.localize(value)
+
+            if value < timezone.now():
+                raise serializers.ValidationError("예약 발송 시간은 현재 시간 이후여야 합니다.")
+            return value.astimezone(pytz.UTC)
+        return value
+
     def create(self, validated_data):
         recipients_data = validated_data.pop('recipients')
-        request = self.context.get("request")
-        letter = Letter.objects.create(sender=request.user, **validated_data)
+        letter = Letter.objects.create(**validated_data)
 
         for recipient in recipients_data:
             user = None
             email = recipient.get('email')
             user_id = recipient.get('user_id')
+
             if user_id:
                 try:
                     user = CustomUser.objects.get(pk=user_id)

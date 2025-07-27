@@ -7,18 +7,17 @@ User = get_user_model()
 class Letter(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_letters')
-    audio_file = models.FileField(upload_to='letters/audio/')
-    transcript = models.TextField(blank=True) 
+    audio_url = models.URLField(null=False, blank=False, default='https://example.com/placeholder.mp3')
+    transcript = models.TextField(blank=True)
     paper_color = models.CharField(max_length=20, default='white')
     created_at = models.DateTimeField(auto_now_add=True)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     is_sent = models.BooleanField(default=False)
-    audio_url = models.URLField(blank=True, null=True)
-
 
     def __str__(self):
         return f"Letter from {self.sender.email}"
-    
+
+
 class LetterRecipient(models.Model):
     letter = models.ForeignKey(Letter, on_delete=models.CASCADE, related_name='recipients')
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
@@ -26,4 +25,8 @@ class LetterRecipient(models.Model):
     is_read = models.BooleanField(default=False)
 
     def __str__(self):
-        return getattr(self.user, "email", None) or self.email or "Unknown"
+        if self.user:
+            return self.user.email
+        elif self.email:
+            return self.email
+        return "Unknown"

@@ -2,28 +2,38 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.generics import ListAPIView
 from letters.models import Letter, LetterRecipient
 from .serializers import SentLetterSerializer, ReceivedLetterSerializer
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
-class MyPageLettersView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+# 페이지네이션
+class LetterPagination(PageNumberPagination):
+    page_size = 5
 
-    def get(self, request):
-        user = request.user
+# 보낸 편지함
+class SentLettersView(ListAPIView):
+    serializer_class = SentLetterSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = LetterPagination
 
-        # 내가 보낸 편지 (누구에게 보냈는지와 읽었는지)
-        sent_letters = Letter.objects.filter(sender=user)
-        received_letter_ids = LetterRecipient.objects.filter(
+    def get_queryset(self):
+        return Letter.objects.filter(sender=self.request.user).order_by('-created_at')
+
+# 받은 편지함
+class ReceivedLettersView(ListAPIView):
+    serializer_class = ReceivedLetterSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = LetterPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        received_ids = LetterRecipient.objects.filter(
             Q(user=user) | Q(email=user.email)
         ).values_list("letter_id", flat=True)
-        received_letters = Letter.objects.filter(id__in=received_letter_ids)
-
-        return Response({
-            "sent_letters": SentLetterSerializer(sent_letters, many=True).data,
-            "received_letters": ReceivedLetterSerializer(received_letters, many=True).data
-        })
+        return Letter.objects.filter(id__in=received_ids).order_by('-created_at')
     
 class MarkLetterAsReadView(APIView):
     permission_classes = [IsAuthenticated]
