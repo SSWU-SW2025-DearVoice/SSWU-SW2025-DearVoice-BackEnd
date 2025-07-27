@@ -17,7 +17,7 @@ class Letter(models.Model):
 
 
     def __str__(self):
-        return f"Letter from {self.sender} to {self.receiver_email or 'anonymous'}"
+        return f"Letter from {self.sender.email}"
     
 class LetterRecipient(models.Model):
     letter = models.ForeignKey(Letter, on_delete=models.CASCADE, related_name='recipients')
@@ -26,4 +26,4 @@ class LetterRecipient(models.Model):
     is_read = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.user.email if self.user else self.email
+        return getattr(self.user, "email", None) or self.email or "Unknown"
