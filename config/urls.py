@@ -21,5 +21,4 @@ urlpatterns = [
     path('api/mypage/', include('mypage.urls')),
     path('letters/', include('letters.urls')),
     path('skyvoice/', include('skyvoice.urls')),
-    re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

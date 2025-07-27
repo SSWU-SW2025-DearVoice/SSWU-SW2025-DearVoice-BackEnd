@@ -15,7 +15,7 @@ urlpatterns = [
     path('transcribe/', ClovaSpeechToTextView.as_view(), name='letter-transcribe'),
 
     # 편지 생성
-    path('', LetterCreateView.as_view(), name='letter-create'),
+    path('create/', LetterCreateView.as_view(), name='letter-create'),
 
     # 편지 목록
     path('list/', LetterListView.as_view(), name='letter-list'),
