@@ -1,9 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions
+from rest_framework import permissions, status
+from rest_framework.permissions import IsAuthenticated
 from letters.models import Letter, LetterRecipient
 from .serializers import SentLetterSerializer, ReceivedLetterSerializer
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 
 class MyPageLettersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -22,3 +24,24 @@ class MyPageLettersView(APIView):
             "sent_letters": SentLetterSerializer(sent_letters, many=True).data,
             "received_letters": ReceivedLetterSerializer(received_letters, many=True).data
         })
+    
+class MarkLetterAsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, letter_id):
+        user = request.user
+
+        # 수신자 정보 조회
+        recipient = get_object_or_404(
+            LetterRecipient,
+            letter_id=letter_id,
+            email=user.email
+        )
+
+        if recipient.is_read:
+            return Response({"message": "이미 읽음 처리된 편지입니다."}, status=200)
+
+        recipient.is_read = True
+        recipient.save()
+
+        return Response({"message": "편지가 읽음으로 표시되었습니다."}, status=200)

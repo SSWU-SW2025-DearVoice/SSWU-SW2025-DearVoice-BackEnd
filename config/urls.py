@@ -3,7 +3,6 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from users.views import GoogleLogin
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -18,14 +17,9 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('users.urls')), 
+    path('api/auth/', include('users.urls')),
+    path('api/mypage/', include('mypage.urls')),
     path('letters/', include('letters.urls')),
     path('skyvoice/', include('skyvoice.urls')),
     re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('api/mypage/', include('mypage.urls')),
-    path('dj-rest-auth/', include('dj_rest_auth.urls')),
-    path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
-    path('dj-rest-auth/google/', GoogleLogin.as_view(), name='google_login'),
-    #프론트 추가
-    path('users/', include('users.urls')),
 ]

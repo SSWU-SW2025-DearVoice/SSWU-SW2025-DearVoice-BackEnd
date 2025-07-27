@@ -181,8 +181,4 @@ CELERY_BEAT_SCHEDULE = {
 ACCOUNT_LOGIN_METHOD = "email"
 ACCOUNT_SIGNUP_FIELDS = ["email", "nickname", "password1*", "password2*"]
 
-REST_AUTH_REGISTER_SERIALIZERS = {
-    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
-}
-
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL")  
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL")

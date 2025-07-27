@@ -32,6 +32,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_social_login = models.BooleanField(default=False)
+    is_new_user = models.BooleanField(default=True)
 
     objects = UserManager()
 
@@ -39,4 +41,4 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['email']
 
     def __str__(self):
-        return self.user_id
+        return f"{self.user_id} ({self.email})"
