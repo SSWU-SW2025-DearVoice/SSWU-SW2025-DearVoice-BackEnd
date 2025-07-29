@@ -11,13 +11,13 @@ class SkyVoiceLetter(models.Model):
     receiver_gender = models.CharField(max_length=10)
     receiver_age = models.PositiveIntegerField()
     receiver_type = models.CharField(max_length=30)
-    receiver_special_note = models.CharField(max_length=100, blank=True)
+    receiver_special_note = models.CharField(max_length=150, blank=True)
 
-    content_text = models.TextField(blank=True)
-    voice_file = models.FileField(upload_to='skyvoice/', blank=True, null=True)
+    audio_url = models.URLField(blank=True, null=True)
+    content_text = models.TextField(blank=True)  
 
     reply_text = models.TextField(blank=True)
-    reply_voice_file = models.FileField(upload_to='skyvoice/reply/', blank=True, null=True)
+    reply_voice_url = models.URLField(blank=True, null=True) 
 
     created_at = models.DateTimeField(auto_now_add=True)
     replied_at = models.DateTimeField(null=True, blank=True)

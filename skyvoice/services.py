@@ -76,44 +76,49 @@ def synthesize_speech(text):
     )
     return response.audio_content  # mp3 bytes
 
-# 4. 파이프라인 전체
-def make_ai_reply(letter):
-    # 1. GPT 답장 생성
-    reply_text = generate_gpt_reply(letter)
-    # 2. Google TTS 변환
-    mp3_data = synthesize_speech(reply_text)
-    # 3. FileField(S3)에 파일 저장 (filename 유니크 보장)
-    filename = f"skyvoice_reply_{uuid.uuid4().hex}.mp3"
-    letter.reply_text = reply_text
-    letter.reply_voice_file.save(filename, ContentFile(mp3_data), save=False)
-    # 4. 답신 시간 기록
-    letter.replied_at = timezone.now()
-    letter.save()
-    return letter
+# S3 직접 업로드
+def upload_mp3_to_s3(mp3_data, filename):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+    key = f"skyvoice/reply/{filename}"
+    s3.put_object(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=key,
+        Body=mp3_data,
+        ContentType='audio/mpeg',
+        ACL='public-read'
+    )
+    url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{key}"
+    return url
 
-# 4. 파이프라인 전체
 def make_ai_reply(letter):
     try:
-        # 1. GPT 답장 생성
+        # GPT 답장 생성
         reply_text = generate_gpt_reply(letter)
         if not reply_text:
             reply_text = "[AI 답장 생성 실패]"
 
-        # 2. Google TTS 변환
+        # Google TTS 변환
         mp3_data = synthesize_speech(reply_text)
         if not mp3_data:
             raise ValueError("TTS 변환 실패")
 
-        # 3. FileField(S3)에 파일 저장 (filename 유니크 보장)
+        # S3 직접 업로드 후 URL 획득
         filename = f"skyvoice_reply_{uuid.uuid4().hex}.mp3"
-        letter.reply_text = reply_text
-        letter.reply_voice_file.save(filename, ContentFile(mp3_data), save=False)
+        s3_url = upload_mp3_to_s3(mp3_data, filename)
 
-        # 4. 답신 시간 기록
+        # 모델에 텍스트와 URL 저장
+        letter.reply_text = reply_text
+        letter.reply_voice_url = s3_url
         letter.replied_at = timezone.now()
         letter.save()
 
         return letter
+
     except Exception as e:
         logger.error(f"[SkyVoice AI 오류] letter.id={letter.id}: {e}")
         return None
