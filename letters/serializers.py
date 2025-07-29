@@ -112,3 +112,10 @@ class LetterCreateSerializer(serializers.ModelSerializer):
             )
 
         return letter
+
+
+
+class LetterTranscriptUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Letter
+        fields = ['transcript']

@@ -5,6 +5,7 @@ from .views import (
     LetterDetailView,
     S3UploadView,
     ClovaSpeechToTextView,
+    LetterTranscriptUpdateView
 )
 
 urlpatterns = [
@@ -22,4 +23,7 @@ urlpatterns = [
 
     # 편지 상세
     path('<uuid:pk>/', LetterDetailView.as_view(), name='letter-detail'),
+
+    #편지 수정
+    path('<uuid:pk>/transcript/', LetterTranscriptUpdateView.as_view(), name='letter-transcript-update'),
 ]

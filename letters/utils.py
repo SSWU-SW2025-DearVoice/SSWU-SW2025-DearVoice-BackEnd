@@ -41,27 +41,25 @@ HEADERS = {
 
 def clova_stt_from_file(file_url):
     try:
-        wav_path = convert_webm_to_wav(file_url)
-
-        print(f"[DEBUG] 변환된 wav 파일 경로: {wav_path}")
-        print(f"[DEBUG] 파일 크기: {os.path.getsize(wav_path)} bytes")
-
-        with open(wav_path, 'rb') as wav_file:
-            files = {
-                "media": ("recording.wav", wav_file, "audio/wav")
-            }
-            data = {
-                "language": "ko-KR"
-            }
-            response = requests.post(CLOVA_API_URL, headers=HEADERS, files=files)
-            print("[DEBUG] Clova 응답 상태코드:", response.status_code)
-            print("[DEBUG] Clova 응답 본문:", response.text)
-            response.raise_for_status()
-            return response.json().get("text")
+        # Presigned URL에서 다운로드
+        response = requests.get(file_url)
+        response.raise_for_status()
         
+        CLOVA_API_URL = "https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor"
+        headers = {
+            "X-NCP-APIGW-API-KEY-ID": settings.NCP_CLIENT_ID,
+            "X-NCP-APIGW-API-KEY": settings.NCP_CLIENT_SECRET,
+            "Content-Type": "application/octet-stream",
+        }
+
+        response = requests.post(CLOVA_API_URL, headers=headers, data=response.content)
+        response.raise_for_status()
+        return response.json().get("text", "")
+    
     except Exception as e:
         logger.error(f"[STT 변환 실패]: {e}")
-        return None
+        return ""
+
 
 def send_letter_email(email, letter_id):
     try:
