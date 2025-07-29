@@ -13,7 +13,7 @@ class SkyVoiceLetterSerializer(serializers.ModelSerializer):
             'audio_url',
             'content_text',
             'reply_text',
-            'reply_voice_file',
+            'reply_voice_url',
             'paper_color',
             'scheduled_at',
             'is_sent',
@@ -23,7 +23,7 @@ class SkyVoiceLetterSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'user',
             'reply_text',
-            'reply_voice_file',
+            'reply_voice_url',
             'created_at',
             'replied_at',
         ]
