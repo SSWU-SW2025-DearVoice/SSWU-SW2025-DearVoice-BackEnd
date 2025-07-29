@@ -1,19 +1,20 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from django.conf import settings
 import boto3
 import uuid
-from .utils import send_letter_email
+from .utils import send_letter_email,clova_stt_from_file
 from .models import Letter, LetterRecipient
 from .serializers import (
     LetterSerializer,
     LetterCreateSerializer,
+    LetterTranscriptUpdateSerializer,
 )
-from .utils import clova_stt_from_file
+
 
 
 # STT 변환 API
@@ -98,3 +99,13 @@ class LetterDetailView(RetrieveAPIView):
     queryset = Letter.objects.all()
     serializer_class = LetterSerializer
     permission_classes = [AllowAny]
+
+
+class LetterTranscriptUpdateView(generics.UpdateAPIView):
+    queryset = Letter.objects.all()
+    serializer_class = LetterTranscriptUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # 현재 사용자(sender)가 작성한 편지만 수정 가능
+        return self.queryset.filter(sender=self.request.user)
