@@ -3,45 +3,109 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.generics import ListAPIView
 from letters.models import Letter, LetterRecipient
-from .serializers import SentLetterSerializer, ReceivedLetterSerializer
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from skyvoice.models import SkyVoiceLetter
 
 # 페이지네이션
 class LetterPagination(PageNumberPagination):
     page_size = 5
 
-# 보낸 편지함
-class SentLettersView(ListAPIView):
-    serializer_class = SentLetterSerializer
+# 통합 보낸 편지함
+class SentLettersView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = LetterPagination
 
-    def get_queryset(self):
-        return Letter.objects.filter(sender=self.request.user).order_by('-created_at')
+    def get(self, request):
+        user = request.user
 
-# 받은 편지함
-class ReceivedLettersView(ListAPIView):
-    serializer_class = ReceivedLetterSerializer
+        letters = Letter.objects.filter(sender=user)
+        letter_data = [
+            {
+                "id": str(l.id),
+                "type": "letter",
+                "transcript": l.transcript,
+                "title": l.title,
+                "paper_color": l.paper_color,
+                "created_at": l.created_at
+            }
+            for l in letters
+        ]
+
+        skyletters = SkyVoiceLetter.objects.filter(user=user)
+        skyletter_data = [
+            {
+                "id": str(s.id),
+                "type": "sky",
+                "transcript": s.content_text,
+                "title": s.title,
+                "paper_color": s.color,
+                "created_at": s.created_at
+            }
+            for s in skyletters
+        ]
+
+        combined = letter_data + skyletter_data
+        combined.sort(key=lambda x: x["created_at"], reverse=True)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(combined, request)
+        return paginator.get_paginated_response(page)
+
+# 통합 받은 편지함
+class ReceivedLettersView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = LetterPagination
 
-    def get_queryset(self):
-        user = self.request.user
+    def get(self, request):
+        user = request.user
+
         received_ids = LetterRecipient.objects.filter(
             Q(user=user) | Q(email=user.email)
         ).values_list("letter_id", flat=True)
-        return Letter.objects.filter(id__in=received_ids).order_by('-created_at')
-    
+        letters = Letter.objects.filter(id__in=received_ids)
+        letter_data = [
+            {
+                "id": str(l.id),
+                "type": "letter",
+                "transcript": l.transcript,
+                "title": l.title,
+                "paper_color": l.paper_color,
+                "created_at": l.created_at,
+                "sender_display_id": l.sender.user_id or l.sender.email
+            }
+            for l in letters
+        ]
+
+        skyletters = SkyVoiceLetter.objects.filter(receiver_email=user.email)
+        skyletter_data = [
+            {
+                "id": str(s.id),
+                "type": "sky",
+                "transcript": s.content_text,
+                "title": s.title,
+                "paper_color": s.color,
+                "created_at": s.created_at,
+                "sender_display_id": s.user.user_id if s.user else None
+            }
+            for s in skyletters
+        ]
+
+        combined = letter_data + skyletter_data
+        combined.sort(key=lambda x: x["created_at"], reverse=True)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(combined, request)
+        return paginator.get_paginated_response(page)
+
+# 읽음 처리
 class MarkLetterAsReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, letter_id):
         user = request.user
 
-        # 수신자 정보 조회
         recipient = get_object_or_404(
             LetterRecipient,
             letter_id=letter_id,
