@@ -21,7 +21,7 @@ class SentLetterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Letter
-        fields = ['id', 'transcript', 'paper_color', 'created_at', 'recipients']
+        fields = ['id', 'transcript', 'paper_color', 'created_at', 'recipients',  'title']
 
 class SenderInfoSerializer(serializers.ModelSerializer):
     display_id = serializers.SerializerMethodField()
@@ -38,4 +38,4 @@ class ReceivedLetterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Letter
-        fields = ['id', 'transcript', 'paper_color', 'created_at', 'sender']
+        fields = ['id', 'transcript', 'paper_color', 'created_at', 'sender', 'title']

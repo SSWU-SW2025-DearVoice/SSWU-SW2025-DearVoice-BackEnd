@@ -32,8 +32,9 @@ class SkyVoiceLetterCreateView(generics.CreateAPIView):
                 logger.warning(f"[STT 실패] letter.id={letter.id}, audio_url={audio_url}")
                 letter.content_text = "[음성 텍스트 변환 실패]"
             letter.save()
-
         if transcript:
+            logger.info(f"[디버깅] Letter {letter.id}에 대해 AI 답장 생성 task 등록 시도")
+            print(f"Celery 태스크 등록: {letter.id}")
             generate_ai_reply_async.delay(letter.id)
 
 # S3 URL 기반 STT 테스트용 API

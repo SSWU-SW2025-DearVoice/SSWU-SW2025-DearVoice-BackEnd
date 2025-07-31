@@ -21,6 +21,7 @@ class LetterSerializer(serializers.ModelSerializer):
             'scheduled_at',
             'is_sent',
             'recipients',
+            'title'
         ]
         read_only_fields = ['sender']
 
@@ -71,6 +72,7 @@ class LetterCreateSerializer(serializers.ModelSerializer):
             'scheduled_at',
             'transcript',
             'recipients',
+            'title'
         ]
 
     def validate(self, attrs):

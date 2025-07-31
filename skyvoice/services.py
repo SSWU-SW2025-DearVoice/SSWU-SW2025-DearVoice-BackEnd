@@ -4,6 +4,10 @@ import uuid
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.utils import timezone
+import logging
+import boto3
+
+logger = logging.getLogger(__name__)
 
 # 1. 프롬프트 생성 함수 (수신자 타입/관계/특이사항/작성자 닉네임 반영)
 def build_dynamic_prompt(letter):
@@ -90,7 +94,7 @@ def upload_mp3_to_s3(mp3_data, filename):
         Key=key,
         Body=mp3_data,
         ContentType='audio/mpeg',
-        ACL='public-read'
+        #ACL='public-read'
     )
     url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{key}"
     return url
