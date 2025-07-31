@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import SentLettersView, ReceivedLettersView, MarkLetterAsReadView
+from .views import (
+    SentLettersView,
+    ReceivedLettersView,
+    MarkLetterAsReadView
+)
 
 urlpatterns = [
     path('sent/', SentLettersView.as_view(), name='sent-letters'),
