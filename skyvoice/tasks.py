@@ -29,13 +29,16 @@ def send_scheduled_voiceletters():
 
             letter.is_sent = True
             letter.save()
-            print(f"[SkyVoice] {letter.id}번 편지 발송 완료!")
+            #print(f"[SkyVoice] {letter.id}번 편지 발송 완료!")
 
         except Exception as e:
-            print(f"[SkyVoice 오류] {letter.id} 발송 실패: {e}")
+            pass
+            #print(f"[SkyVoice 오류] {letter.id} 발송 실패: {e}")
 
 @shared_task
 def generate_ai_reply_async(letter_id):
+    logger.debug(f"generate_ai_reply_async_start")
+
     try:
         letter = SkyVoiceLetter.objects.get(pk=letter_id)
         make_ai_reply(letter)

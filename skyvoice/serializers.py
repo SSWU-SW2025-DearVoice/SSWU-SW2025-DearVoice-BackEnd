@@ -14,11 +14,15 @@ class SkyVoiceLetterSerializer(serializers.ModelSerializer):
             'content_text',
             'reply_text',
             'reply_voice_url',
-            'paper_color',
+            'color',
             'scheduled_at',
             'is_sent',
             'created_at',
             'replied_at',
+            'receiver_age',
+            'receiver_gender',
+            'receiver_type',
+            'title',
         ]
         read_only_fields = [
             'user',
