@@ -78,16 +78,17 @@ class ReceivedLettersView(APIView):
             for l in letters
         ]
 
-        skyletters = SkyVoiceLetter.objects.filter(receiver_email=user.email)
+        skyletters = SkyVoiceLetter.objects.filter(user=user)
         skyletter_data = [
             {
                 "id": str(s.id),
                 "type": "sky",
                 "transcript": s.content_text,
                 "title": s.title,
+                "reply_text":s.reply_text,
                 "paper_color": s.color,
                 "created_at": s.created_at,
-                "sender_display_id": s.user.user_id if s.user else None
+                "sender_display_id": getattr(s.user, "user_id", None) or getattr(s.user, "email", None)
             }
             for s in skyletters
         ]
