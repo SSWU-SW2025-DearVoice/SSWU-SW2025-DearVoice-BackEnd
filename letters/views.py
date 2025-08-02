@@ -14,7 +14,7 @@ from .serializers import (
     LetterCreateSerializer,
     LetterTranscriptUpdateSerializer,
 )
-
+from django.shortcuts import get_object_or_404
 
 
 # STT 변환 API
@@ -49,10 +49,6 @@ class LetterCreateView(APIView):
         serializer = LetterCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             letter = serializer.save()
-
-            # 이메일 발송
-            for r in letter.recipients.all():
-                send_letter_email(r.email, letter.id)
 
             return Response(LetterSerializer(letter).data, status=201)
         else:
@@ -98,7 +94,7 @@ class LetterListView(ListAPIView):
 class LetterDetailView(RetrieveAPIView):
     queryset = Letter.objects.all()
     serializer_class = LetterSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
 
 class LetterTranscriptUpdateView(generics.UpdateAPIView):
@@ -109,3 +105,16 @@ class LetterTranscriptUpdateView(generics.UpdateAPIView):
     def get_queryset(self):
         # 현재 사용자(sender)가 작성한 편지만 수정 가능
         return self.queryset.filter(sender=self.request.user)
+
+
+# 이메일 열람 편지 상세보기 (비회원도 가능)
+class PublicLetterDetailView(RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = LetterSerializer
+    queryset = Letter.objects.all()
+
+    def get_object(self):
+        uuid = self.kwargs.get("uuid")
+        letter = get_object_or_404(Letter, id=uuid)
+
+        return letter

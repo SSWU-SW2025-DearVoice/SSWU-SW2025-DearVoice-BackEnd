@@ -74,7 +74,10 @@ def clova_stt_from_file(file_url):
 def send_letter_email(email, letter_id):
     try:
         letter = Letter.objects.get(id=letter_id)
-        letter_url = f"{settings.FRONTEND_BASE_URL}/mypage/received/{letter.uuid}"
+        letter_url = f"{settings.FRONTEND_BASE_URL}/share/{letter.id}"
+
+        print(f"[DEBUG] 이메일 링크: {letter_url}")
+        
         send_mail(
             subject="DearVoice에서 새로운 보이스레터가 도착했습니다",
             message=f"DearVoice에서 새로운 보이스레터를 받았습니다.\n아래 링크를 클릭하여 편지를 확인하세요:\n{letter_url}",

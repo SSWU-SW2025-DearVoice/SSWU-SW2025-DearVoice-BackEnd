@@ -7,6 +7,7 @@ from letters.models import Letter, LetterRecipient
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from skyvoice.models import SkyVoiceLetter
+from django.contrib.auth import authenticate
 
 # 페이지네이션
 class LetterPagination(PageNumberPagination):
@@ -120,3 +121,39 @@ class MarkLetterAsReadView(APIView):
         recipient.save()
 
         return Response({"message": "편지가 읽음으로 표시되었습니다."}, status=200)
+
+# 회원탈퇴
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        password = request.data.get("password")
+
+        if not password:
+            return Response({"error": "비밀번호를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(password):
+            return Response({"error": "비밀번호가 일치하지 않습니다."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        user.is_active = False
+        user.save()
+
+        return Response({"message": "회원 탈퇴가 완료되었습니다."}, status=status.HTTP_200_OK)
+
+# 보낸 편지 삭제
+class DeleteSentLetterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, letter_type, letter_id):
+        user = request.user
+
+        if letter_type == "letter":
+            letter = get_object_or_404(Letter, id=letter_id, sender=user)
+        elif letter_type == "sky":
+            letter = get_object_or_404(SkyVoiceLetter, id=letter_id, user=user)
+        else:
+            return Response({"error": "잘못된 편지 타입입니다."}, status=400)
+
+        letter.delete()
+        return Response({"message": "편지가 삭제되었습니다."}, status=204)

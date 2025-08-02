@@ -19,6 +19,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/mypage/', include('mypage.urls')),
-    path('letters/', include('letters.urls')),
+    path('api/letters/', include('letters.urls')),
     path('skyvoice/', include('skyvoice.urls')),
 ]

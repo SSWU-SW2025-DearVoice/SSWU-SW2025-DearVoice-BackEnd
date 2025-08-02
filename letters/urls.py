@@ -5,7 +5,8 @@ from .views import (
     LetterDetailView,
     S3UploadView,
     ClovaSpeechToTextView,
-    LetterTranscriptUpdateView
+    LetterTranscriptUpdateView,
+    PublicLetterDetailView
 )
 
 urlpatterns = [
@@ -26,4 +27,7 @@ urlpatterns = [
 
     #편지 수정
     path('<uuid:pk>/transcript/', LetterTranscriptUpdateView.as_view(), name='letter-transcript-update'),
+
+    #이메일 열람용 편지 상세
+    path('share/<uuid:uuid>/', PublicLetterDetailView.as_view(), name='public-letter-detail'),
 ]
