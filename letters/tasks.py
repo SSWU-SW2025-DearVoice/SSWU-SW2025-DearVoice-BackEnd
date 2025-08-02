@@ -22,7 +22,8 @@ def send_scheduled_letters():
                 continue
 
             try:
-                letter_url = f"{settings.FRONTEND_BASE_URL}/letters/{letter.id}"
+                letter_url = f"{settings.FRONTEND_BASE_URL}/share/{letter.id}"
+
                 send_mail(
                     subject="DearVoice에서 편지가 도착했습니다",
                     message=f"{letter.sender.email} 님이 보낸 음성 편지가 도착했습니다.\n확인 링크: {letter_url}",
