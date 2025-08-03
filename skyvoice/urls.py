@@ -12,6 +12,7 @@ from .views import (
     SkyVoiceTranscribeView,
     SkyVoiceLetterDetailView,
     SkyVoiceLetterListView,
+    PublicSkyVoiceLetterDetailView
 )
 
 urlpatterns = [
@@ -26,4 +27,7 @@ urlpatterns = [
 
     # STT 변환 (프론트에서 텍스트 미리 확인용)
     path('letters/transcribe/', SkyVoiceTranscribeView.as_view(), name='skyvoice-letter-transcribe'),
+
+    #비회원 편지 상세 조회 
+    path("share/<int:pk>/", PublicSkyVoiceLetterDetailView.as_view(), name="public-skyvoice-detail"),
 ]

@@ -1,16 +1,19 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import RetrieveAPIView
 import logging
 from .models import SkyVoiceLetter
 from .serializers import SkyVoiceLetterSerializer
 from .services import make_ai_reply
 from .tasks import generate_ai_reply_async
 from letters.utils import clova_stt_from_file
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,3 +81,13 @@ class SkyVoiceLetterListView(generics.ListAPIView):
 
     def get_queryset(self):
         return SkyVoiceLetter.objects.filter(user=self.request.user).order_by('-created_at')
+
+#비회원 상세 조회 
+class PublicSkyVoiceLetterDetailView(RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = SkyVoiceLetterSerializer
+    queryset = SkyVoiceLetter.objects.all()
+
+    def get_object(self):
+        pk = self.kwargs.get("pk")
+        return get_object_or_404(SkyVoiceLetter, pk=pk)
