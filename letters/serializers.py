@@ -3,6 +3,8 @@ from django.utils import timezone
 from rest_framework import serializers
 from .models import Letter, LetterRecipient
 from users.models import CustomUser
+from letters.tasks import send_letter_task
+
 
 
 class LetterSerializer(serializers.ModelSerializer):
@@ -92,28 +94,30 @@ class LetterCreateSerializer(serializers.ModelSerializer):
             return value.astimezone(pytz.UTC)
         return value
 
+
     def create(self, validated_data):
-        recipients_data = validated_data.pop('recipients')
+        recipients_data = validated_data.pop("recipients")
+        scheduled_at = validated_data.get("scheduled_at")
+        now = timezone.now()
+
+        # Letter 인스턴스 먼저 생성
         letter = Letter.objects.create(**validated_data)
 
-        for recipient in recipients_data:
-            user = None
-            email = recipient.get('email')
-            user_id = recipient.get('user_id')
+        # 수신자 저장
+        for recipient_data in recipients_data:
+            LetterRecipient.objects.create(letter=letter, **recipient_data)
 
-            if user_id:
-                try:
-                    user = CustomUser.objects.get(pk=user_id)
-                except CustomUser.DoesNotExist:
-                    pass
+        # 즉시 전송 조건 확인 및 처리
+        if scheduled_at is None or scheduled_at <= now:
+            letter.is_sent = True
+            letter.scheduled_at = now  # scheduled_at이 None이면 지금으로 설정
+            letter.save()
 
-            LetterRecipient.objects.create(
-                letter=letter,
-                user=user,
-                email=email
-            )
+            # Celery 태스크 등록 (예: 실제 전송 작업 등)
+            send_letter_task.apply_async(args=[str(letter.id)])
 
         return letter
+
 
 
 
