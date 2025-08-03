@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import LetterRecipient, Letter
+from .models import Letter, LetterRecipient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,12 @@ def send_scheduled_letters():
     letters = Letter.objects.filter(is_sent=False, scheduled_at__lte=now)
 
     for letter in letters:
+        send_letter_task(letter.id)
+
+@shared_task
+def send_letter_task(letter_id):
+    try:
+        letter = Letter.objects.get(id=letter_id)
         recipients = letter.recipients.all()
         letter_sent = False
 
@@ -23,7 +29,6 @@ def send_scheduled_letters():
 
             try:
                 letter_url = f"{settings.FRONTEND_BASE_URL}/share/{letter.id}"
-
                 send_mail(
                     subject="DearVoice에서 편지가 도착했습니다",
                     message=f"{letter.sender.email} 님이 보낸 음성 편지가 도착했습니다.\n확인 링크: {letter_url}",
@@ -31,11 +36,14 @@ def send_scheduled_letters():
                     recipient_list=[email],
                     fail_silently=False,
                 )
-                logger.info(f"[예약발송] {email} 에게 편지 발송 완료!")
+                logger.info(f"[편지 전송] {email} 에게 편지 발송 완료!")
                 letter_sent = True
             except Exception as e:
-                logger.error(f"[예약발송 오류] {email} 전송 실패: {e}")
+                logger.error(f"[전송 오류] {email} 전송 실패: {e}")
 
         if letter_sent:
             letter.is_sent = True
             letter.save()
+
+    except Letter.DoesNotExist:
+        logger.error(f"[전송 오류] Letter {letter_id} 존재하지 않음")
