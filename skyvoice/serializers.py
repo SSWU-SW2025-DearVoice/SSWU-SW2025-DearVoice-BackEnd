@@ -37,3 +37,18 @@ class SkyVoiceLetterSerializer(serializers.ModelSerializer):
             seoul = pytz.timezone('Asia/Seoul')
             value = seoul.localize(value)
         return value.astimezone(pytz.UTC)
+
+    def create(self, validated_data):
+        letter = SkyVoiceLetter.objects.create(**validated_data)
+
+        scheduled_at = validated_data.get("scheduled_at")
+        now_utc = timezone.now()
+
+        # 즉시 발송 조건 추가
+        if scheduled_at is None or scheduled_at <= now_utc:
+            letter.is_sent = True
+            letter.scheduled_at = now_utc if scheduled_at is None else scheduled_at
+            letter.save()
+
+        return letter
+
