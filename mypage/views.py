@@ -21,7 +21,8 @@ class SentLettersView(APIView):
     def get(self, request):
         user = request.user
 
-        letters = Letter.objects.filter(sender=user)
+        letters = Letter.objects.filter(sender=user).prefetch_related('recipients')
+
         letter_data = [
             {
                 "id": str(l.id),
@@ -29,10 +30,18 @@ class SentLettersView(APIView):
                 "transcript": l.transcript,
                 "title": l.title,
                 "paper_color": l.paper_color,
-                "created_at": l.created_at
+                "created_at": l.created_at,
+                "recipients": [
+                    {
+                        "display_id": r.user.user_id if r.user else r.email,
+                        "email": r.email
+                    }
+                    for r in l.recipients.all()
+                ]
             }
             for l in letters
         ]
+
 
         skyletters = SkyVoiceLetter.objects.filter(user=user)
         skyletter_data = [
@@ -42,7 +51,8 @@ class SentLettersView(APIView):
                 "transcript": s.content_text,
                 "title": s.title,
                 "paper_color": s.color,
-                "created_at": s.created_at
+                "created_at": s.created_at,
+                "receiver_name": s.receiver_name if hasattr(s, "receiver_name") else None,
             }
             for s in skyletters
         ]
@@ -65,7 +75,7 @@ class ReceivedLettersView(APIView):
         received_ids = LetterRecipient.objects.filter(
             Q(user=user) | Q(email=user.email)
         ).values_list("letter_id", flat=True)
-        letters = Letter.objects.filter(id__in=received_ids)
+        letters = Letter.objects.filter(id__in=received_ids).prefetch_related('recipients')
         letter_data = [
             {
                 "id": str(l.id),
@@ -74,7 +84,14 @@ class ReceivedLettersView(APIView):
                 "title": l.title,
                 "paper_color": l.paper_color,
                 "created_at": l.created_at,
-                "sender_display_id": l.sender.user_id or l.sender.email
+                "sender_display_id": l.sender.user_id or l.sender.email,
+                "recipients": [
+                    {
+                        "display_id": r.user.user_id if r.user else r.email,
+                        "email": r.email
+                    }
+                    for r in l.recipients.all()
+                ]
             }
             for l in letters
         ]
@@ -89,7 +106,8 @@ class ReceivedLettersView(APIView):
                 "reply_text":s.reply_text,
                 "paper_color": s.color,
                 "created_at": s.created_at,
-                "sender_display_id": getattr(s.user, "user_id", None) or getattr(s.user, "email", None)
+                "sender_display_id": getattr(s.user, "user_id", None) or getattr(s.user, "email", None),
+                "receiver_name": s.receiver_name if hasattr(s, "receiver_name") else None,
             }
             for s in skyletters
         ]
