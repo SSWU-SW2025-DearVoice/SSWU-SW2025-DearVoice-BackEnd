@@ -2,21 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.pagination import PageNumberPagination
 from letters.models import Letter, LetterRecipient
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from skyvoice.models import SkyVoiceLetter
 from django.contrib.auth import authenticate
 
-# 페이지네이션
-class LetterPagination(PageNumberPagination):
-    page_size = 5
-
 # 통합 보낸 편지함
 class SentLettersView(APIView):
     permission_classes = [IsAuthenticated]
-    pagination_class = LetterPagination
 
     def get(self, request):
         user = request.user
@@ -60,14 +54,11 @@ class SentLettersView(APIView):
         combined = letter_data + skyletter_data
         combined.sort(key=lambda x: x["created_at"], reverse=True)
 
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(combined, request)
-        return paginator.get_paginated_response(page)
+        return Response(combined, status=200)
 
 # 통합 받은 편지함
 class ReceivedLettersView(APIView):
     permission_classes = [IsAuthenticated]
-    pagination_class = LetterPagination
 
     def get(self, request):
         user = request.user
@@ -115,9 +106,7 @@ class ReceivedLettersView(APIView):
         combined = letter_data + skyletter_data
         combined.sort(key=lambda x: x["created_at"], reverse=True)
 
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(combined, request)
-        return paginator.get_paginated_response(page)
+        return Response(combined, status=200) 
 
 # 읽음 처리
 class MarkLetterAsReadView(APIView):
