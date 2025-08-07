@@ -14,6 +14,9 @@ load_dotenv(dotenv_path=BASE_DIR / '.env')
 CLOVA_CLIENT_ID = os.getenv("CLOVA_CLIENT_ID")
 CLOVA_CLIENT_SECRET = os.getenv("CLOVA_CLIENT_SECRET")
 
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')

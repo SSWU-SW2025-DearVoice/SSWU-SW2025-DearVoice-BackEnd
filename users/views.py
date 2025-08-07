@@ -76,6 +76,7 @@ class GoogleLoginAPIView(APIView):
                 is_new_user=True
             )
             is_new_user = True
+            
         else:
             # 기존 유저라면 is_new_user=False로 업데이트 (단 한 번만 True로 유지)
             if user.is_new_user:
