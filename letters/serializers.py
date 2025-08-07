@@ -5,8 +5,6 @@ from .models import Letter, LetterRecipient
 from users.models import CustomUser
 from letters.tasks import send_letter_task
 
-
-
 class LetterSerializer(serializers.ModelSerializer):
     recipients = serializers.SerializerMethodField()
     sender = serializers.SerializerMethodField()
