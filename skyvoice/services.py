@@ -2,119 +2,138 @@ import openai
 from google.cloud import texttospeech
 import uuid
 from django.conf import settings
-from django.core.files.base import ContentFile
 from django.utils import timezone
 import logging
 import boto3
+import re
 
 logger = logging.getLogger(__name__)
 
-# 1. 프롬프트 생성 함수
+# --- 프롬프트 생성 ---
 def build_dynamic_prompt(letter):
-    #필드 추출
     user = getattr(letter, 'user', None)
-    sender_nickname = getattr(user, 'nickname', None) or getattr(user, 'user_id', None) or "작성자"
+    sender = getattr(user, 'nickname', None) or getattr(user, 'user_id', None) or "보낸이"
 
-    r_type = (getattr(letter, 'receiver_type', '') or '').strip().lower()
+    r_type_raw = (getattr(letter, 'receiver_type', '') or '').strip()
+    norm = r_type_raw.replace("님", "").replace("외", "").lower()
     r_name = getattr(letter, 'receiver_name', '') or '상대'
     r_gender = getattr(letter, 'receiver_gender', '') or ''
     r_age = getattr(letter, 'receiver_age', '') or ''
     r_note = (getattr(letter, 'receiver_special_note', '') or '').strip()
     content = getattr(letter, 'content_text', '') or ''
 
-    PET_KEYWORDS = {"dog","cat","hamster","pet","반려견","반려동물","고양이","강아지"}
-    PARENT_KEYWORDS = {"mother","father","parent","부모님","엄마","아빠"}
-    FRIEND_KEYWORDS = {"friend","친구"}
-
-    # 관계별 역할 및 톤
-    if r_type in PET_KEYWORDS:
-        role_line = f"역할: 너는 반려동물 {r_name}야."
-        style_line = "어조: 사랑스럽고 천진난만하게."
-        pov_line = "시점: 1인칭(‘나’)으로, 주인을 ‘엄마/아빠’ 또는 이름으로 부르기."
-    elif r_type in PARENT_KEYWORDS:
-        parent_honorific = "엄마" if r_type in {"mother","엄마"} else ("아빠" if r_type in {"father","아빠"} else "부모")
-        role_line = f"역할: 너는 {parent_honorific} {r_name}야."
-        style_line = "어조: 다정하고 위로가 되는 말투."
-        pov_line = "시점: 1인칭(‘나’)으로, 자녀를 이름이나 애칭으로 부르기."
-    elif r_type in FRIEND_KEYWORDS:
-        role_line = f"역할: 너는 친구 {r_name}야."
-        style_line = "어조: 친근하고 솔직하게."
-        pov_line = "시점: 1인칭(‘나’)으로, 이름으로 부르기."
+    def kind(k): return any(x in norm for x in k)
+    if kind(["grand", "할머니", "할아버지", "조부", "조모"]):
+        role = f"너는 {r_name}(조부모)이고 {sender}의 마음을 보듬어 준다."
+        tone = "따뜻하고 포근, 안심시키는 말투"
+    elif kind(["parent", "부모", "엄마", "어머니", "아빠", "아버지"]):
+        role = f"너는 {r_name}(부모)이고 {sender}를 다정히 위로한다."
+        tone = "다정하고 안정감"
+    elif kind(["friend", "친구"]):
+        role = f"너는 친구 {r_name}이고 {sender}에게 솔직히 응원한다."
+        tone = "친근하고 솔직"
+    elif kind(["연인", "lover", "boyfriend", "girlfriend", "남자친구", "여자친구"]):
+        role = f"너는 연인 {r_name}이고 {sender}에게 애틋하게 말한다."
+        tone = "애틋하고 다정"
+    elif kind(["형", "누나", "오빠", "언니", "형제", "자매", "brother", "sister"]):
+        role = f"너는 {r_name}(형제/자매)이고 든든히 응원한다."
+        tone = "든든하고 친밀"
+    elif kind(["선생", "teacher", "교수"]):
+        role = f"너는 {r_name}(선생님)이고 지혜롭게 격려한다."
+        tone = "존중·따뜻"
     else:
-        role_line = f"역할: 너는 {r_type} {r_name}야."
-        style_line = "어조: 관계에 맞게 진솔하고 따뜻하게."
-        pov_line = "시점: 1인칭(‘나’)으로 쓰기."
+        role = f"너는 {r_type_raw} {r_name}이고 관계에 맞게 말한다."
+        tone = "진솔·따뜻, 공감→위로→응원 흐름"
 
-    # 특이사항에서 사망 여부
-    note_lower = r_note.lower()
-    is_deceased = any(k in note_lower for k in ["돌아가신","하늘나라","고인","passed","deceased"])
-    deceased_line = "설정: 너는 이미 세상을 떠났고, 편지는 추모의 마음으로 읽었다고 가정." if is_deceased else ""
+    deceased_tokens = ["돌아가신", "하늘", "하늘나라", "고인", "영면", "작고", "별세", "passed", "deceased", "in heaven"]
+    is_deceased = any(t in r_note.lower() for t in [x.lower() for x in deceased_tokens])
+    afterlife = "이미 세상을 떠난 설정, 안심과 응원 중심." if is_deceased else ""
 
-    # Few-shot 예시
-    examples = """
-예시:
-[반려동물]
-편지: "요즘 너무 바빠서 못 놀아줘서 미안해."
-답장: "나는 너랑 놀 수만 있다면 언제든 좋아. 오늘 밤엔 꼭 같이 놀자!"
-
-[부모]
-편지: "요즘 학교가 힘들어서 지쳐."
-답장: "네 마음이 힘들다니 안타깝구나. 항상 네 편이니 믿고 나아가렴."
-
-[친구]
-편지: "이번 주말에 영화 보러 갈래?"
-답장: "좋지! 너랑 같이 영화 보면 재밌을 것 같아."
-"""
-
-    # 프롬프트
     prompt = f"""
-시스템 지시:
-- 출력 형식: 2~3문장, 180자 이내
-- 반드시 1인칭 시점(‘나’)으로 작성
-- 수신자({r_name})의 입장에서 {sender_nickname}에게 직접 말하기
-- 편지의 감정에 공감 + 짧은 위로/격려 + 약속/응원 포함
-- 이모지, 해시태그, 서명 금지
-- 메타 발화, 지시 재언급 금지
+규칙:
+- 한국어만. 반드시 1인칭(‘나’)으로 **{r_name}의 입장**에서 {sender}에게 직접 말할 것.
+- 2~3문장, 180자 이내. 이모지/해시태그/따옴표/서명 금지.
+- 문두에 수신자 호명 금지.
+- 메타발화 금지.
 
-{role_line}
-{style_line}
-{pov_line}
-{deceased_line}
+역할/톤: {role} / {tone}. {afterlife}
 
-수신자 정보:
-- 이름: {r_name}
-- 성별: {r_gender}
-- 나이: {r_age}
-- 특이사항: {r_note if r_note else "없음"}
+수신자 정보: 이름 {r_name}, 성별 {r_gender}, 나이 {r_age}, 특이사항: {r_note or "없음"}
 
-작성자(보낸이): {sender_nickname}
+상황: 아래는 {sender}가 보낸 편지다. 너({r_name})가 그 편지를 읽고 바로 답장한다.
 
-상황:
-아래 편지는 {sender_nickname}이(가) {r_name}에게 보낸 편지야.
-편지를 읽은 너({r_name})가 답장을 쓴다.
+편지 원문:
+{content}
 
-편지:
-\"\"\"{content}\"\"\"
-
-{examples}
-
-출력:
+출력: 조건을 지킨 답장 텍스트만.
 """
-    return prompt
+    return prompt.strip()
 
 
-# 2. 답장 텍스트 생성
+# --- 문장 유효성 체크 ---
+SENT_PAT = re.compile(r"[^\s].*?(?:[.!?…]|[。？！]|(?:다|요)(?:\.|\s|$))")
+
+def count_sentences_ko(text: str) -> int:
+    return len([m.group(0).strip() for m in SENT_PAT.finditer(text.strip())])
+
+def is_invalid_reply(text: str, receiver_name: str, sender_name: str):
+    reasons, t = [], text.strip()
+    if len(t) > 180:
+        reasons.append("길이 180자 초과")
+    n_sent = count_sentences_ko(t)
+    if not (2 <= n_sent <= 3):
+        reasons.append("문장 수 2~3 미준수")
+    if not re.search(r"(?:^|[^가-힣])(나|내|난|나는|내가)(?:$|[^가-힣])", t):
+        reasons.append("1인칭 표현 부족")
+    if receiver_name and re.match(rf"^\s*{re.escape(receiver_name)}\s*[,·:]", t):
+        reasons.append("문두 수신자 호명")
+    if '"' in t or '“' in t or '”' in t:
+        reasons.append("따옴표 포함")
+    return len(reasons) > 0, reasons
+
+
+def postprocess_reply(text: str) -> str:
+    t = text.strip().replace("“", "").replace("”", "").replace("‘", "").replace("’", "").replace("`", "")
+    return t.strip('"').replace("\n\n", "\n").strip()
+
+
+# --- GPT 호출 ---
 def generate_gpt_reply(letter):
     client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-    prompt = build_dynamic_prompt(letter)
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200,
-    )
-    return response.choices[0].message.content.strip()
+    user_prompt = build_dynamic_prompt(letter)
+    system_prompt = "너는 규칙을 철저히 지키는 한국어 답장 생성기다."
 
-# 3. TTS 변환 (구글)
+    def llm_call(prompt):
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=200,
+            temperature=0.2,
+        )
+        return resp.choices[0].message.content
+
+    logger.debug(f"[GPT] Prompt:\n{user_prompt}")
+    raw_reply = llm_call(user_prompt)
+    logger.debug(f"[GPT] Raw reply: {raw_reply}")
+
+    reply = postprocess_reply(raw_reply)
+    invalid, reasons = is_invalid_reply(reply, letter.receiver_name, getattr(letter.user, 'nickname', ''))
+
+    if invalid:
+        logger.warning(f"[GPT] Reply invalid: {reasons}")
+        retry_prompt = f"{user_prompt}\n\n규칙을 다시 지켜서 작성."
+        raw_retry = llm_call(retry_prompt)
+        logger.debug(f"[GPT] Retry raw reply: {raw_retry}")
+        reply = postprocess_reply(raw_retry)
+
+    logger.info(f"[GPT] Final reply: {reply}")
+    return reply
+
+
+# --- TTS 변환 ---
 def synthesize_speech(text):
     client = texttospeech.TextToSpeechClient()
     synthesis_input = texttospeech.SynthesisInput(text=text)
@@ -122,15 +141,13 @@ def synthesize_speech(text):
         language_code="ko-KR",
         ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
     )
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3,
-    )
-    response = client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-    )
-    return response.audio_content  # mp3 bytes
+    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+    response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+    logger.debug(f"[TTS] Generated audio size: {len(response.audio_content)} bytes")
+    return response.audio_content
 
-# S3 직접 업로드
+
+# --- S3 업로드 ---
 def upload_mp3_to_s3(mp3_data, filename):
     s3 = boto3.client(
         's3',
@@ -144,35 +161,35 @@ def upload_mp3_to_s3(mp3_data, filename):
         Key=key,
         Body=mp3_data,
         ContentType='audio/mpeg',
-        #ACL='public-read'
     )
     url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{key}"
+    logger.debug(f"[S3] Uploaded to: {url}")
     return url
 
+
+# --- 메인 함수 ---
 def make_ai_reply(letter):
     try:
-        # GPT 답장 생성
         reply_text = generate_gpt_reply(letter)
         if not reply_text:
+            logger.error("[AI] Empty reply text")
             reply_text = "[AI 답장 생성 실패]"
 
-        # Google TTS 변환
         mp3_data = synthesize_speech(reply_text)
         if not mp3_data:
             raise ValueError("TTS 변환 실패")
 
-        # S3 직접 업로드 후 URL 획득
         filename = f"skyvoice_reply_{uuid.uuid4().hex}.mp3"
         s3_url = upload_mp3_to_s3(mp3_data, filename)
 
-        # 모델에 텍스트와 URL 저장
         letter.reply_text = reply_text
         letter.reply_voice_url = s3_url
         letter.replied_at = timezone.now()
         letter.save()
 
+        logger.info(f"[AI] Reply saved: {reply_text[:30]}..., Voice URL: {s3_url}")
         return letter
 
     except Exception as e:
-        logger.error(f"[SkyVoice AI 오류] letter.id={letter.id}: {e}")
+        logger.exception(f"[SkyVoice AI 오류] letter.id={letter.id}: {e}")
         return None

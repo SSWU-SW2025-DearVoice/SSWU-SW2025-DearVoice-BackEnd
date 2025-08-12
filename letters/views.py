@@ -52,6 +52,8 @@ class LetterCreateView(APIView):
 
             return Response(LetterSerializer(letter).data, status=201)
         else:
+            # ✅ 여기 한 줄 추가
+            print("💥 Serializer validation error:", serializer.errors)
             return Response(serializer.errors, status=400)
 
 

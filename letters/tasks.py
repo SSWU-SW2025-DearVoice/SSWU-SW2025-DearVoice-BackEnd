@@ -1,3 +1,4 @@
+# letters/tasks.py
 from celery import shared_task
 from django.utils import timezone
 from django.core.mail import send_mail
@@ -5,7 +6,17 @@ from django.conf import settings
 from .models import Letter, LetterRecipient
 import logging
 
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+
 logger = logging.getLogger(__name__)
+
+def _is_valid_email(email):
+    try:
+        validate_email(email)
+        return True
+    except ValidationError:
+        return False
 
 @shared_task
 def send_scheduled_letters():
@@ -25,6 +36,11 @@ def send_letter_task(letter_id):
         for recipient in recipients:
             email = recipient.email
             if not email:
+                logger.warning(f"[메일] 이메일 없음, 건너뜀 (Letter {letter_id})")
+                continue
+
+            if not _is_valid_email(email):
+                logger.warning(f"[메일] 잘못된 이메일 형식, 건너뜀: {email} (Letter {letter_id})")
                 continue
 
             try:
